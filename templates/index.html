@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="/htmx/dist/htmx.min.js"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-clifford: #da373d;
+      }
+    </style>
+    <title>{{ .title }}</title>
+  </head>
+  <body class="bg-zinc-900 w-5/6 mx-auto">
+    <nav class="flex p-4 justify-around">
+      <h1 class="text-3xl font-bold text-white">Blog</h1>
+      <ul class="flex gap-4 my-auto">
+        <li class="text-white"><a href="/">Home</a></li>
+        <li class="text-white"><a href="/about">About</a></li>
+      </ul>
+    </nav>
+
+    <!-- Blog Posts Section -->
+    <div class="space-y-8">
+      {{ range .posts }}
+      <article class="bg-zinc-800 p-6 rounded-lg shadow">
+        <h2 class="text-2xl font-bold text-clifford">{{ .Title }}</h2>
+        <p class="text-gray-300 mt-2">{{ .Content }}</p>
+        <button
+          hx-get="/api/read-more/{{ .Title }}"
+          hx-target="#post-{{ .Title }}"
+          hx-swap="innerHTML"
+          class="mt-4 bg-clifford text-white px-4 py-2 rounded hover:bg-red-600"
+        >
+          Read More
+        </button>
+        <div id="post-{{ .Title }}" class="mt-4"></div>
+      </article>
+      {{ end }}
+    </div>
+  </body>
+</html>
