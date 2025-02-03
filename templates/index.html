@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <script src="/htmx/dist/htmx.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.js" integrity="sha384-oeUn82QNXPuVkGCkcrInrS1twIxKhkZiFfr2TdiuObZ3n3yIeMiqcRzkIcguaof1" crossorigin="anonymous"></script>
     <style type="text/tailwindcss">
       @theme {
         --color-clifford: #da373d;
@@ -18,6 +18,10 @@
       <ul class="flex gap-4 my-auto">
         <li class="text-white"><a href="/">Home</a></li>
         <li class="text-white"><a href="/about">About</a></li>
+        {{ if .user }}
+        <li class="text-white"><a href="/write">Write</a></li>
+        <li class="text-white"><a href="/auth/logout">Logout</a></li>
+        {{ end }}
       </ul>
     </nav>
 

@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.js" integrity="sha384-oeUn82QNXPuVkGCkcrInrS1twIxKhkZiFfr2TdiuObZ3n3yIeMiqcRzkIcguaof1" crossorigin="anonymous"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-clifford: #da373d;
+      }
+    </style>
+    <title>{{ .title }}</title>
+  </head>
+  <body class="bg-zinc-900 w-5/6 mx-auto">
+    <nav class="flex p-4 justify-around">
+      <h1 class="text-3xl font-bold text-white">Blog</h1>
+      <ul class="flex gap-4 my-auto">
+        <li class="text-white"><a href="/">Home</a></li>
+        <li class="text-white"><a href="/login">Login</a></li>
+      </ul>
+    </nav>
+
+    <h1 class="text-3xl font-bold underline text-white my-8">Login</h1>
+
+    {{ if .message }}
+    <p class="text-red-500">{{ .message }}</p>
+    {{ end }}
+
+    <form action="/auth/login" method="POST" class="bg-zinc-800 p-6 rounded-lg shadow">
+      <div class="mb-4">
+        <label for="username" class="block text-gray-300">Username</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          class="w-full p-2 rounded bg-zinc-700 text-white"
+          required
+        />
+      </div>
+      <div class="mb-4">
+        <label for="password" class="block text-gray-300">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          class="w-full p-2 rounded bg-zinc-700 text-white"
+          required
+        />
+      </div>
+      <button
+        type="submit"
+        class="bg-clifford text-white px-4 py-2 rounded hover:bg-red-600"
+      >
+        Login
+      </button>
+    </form>
+  </body>
+</html>
