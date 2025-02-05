@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -12,19 +18,49 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-type BlogPost struct {
+type Post struct {
 	Title   string
-	Content string
+	Text    string
+	Tags    string
+	Created string
+	Updated string
+	Mood    string
 }
 
-var blogPosts = []BlogPost{
-	{Title: "First Post", Content: "This is the content of the first post."},
-	{Title: "Second Post", Content: "This is the content of the second post."},
+type BlogPost struct {
+	Blog  string `dynamodbav:"blog"`
+	Posts []Post `dynamodbav:"posts"`
 }
+
+var blogPosts []Post
 
 func main() {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("us-west-1"),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	svc := dynamodb.NewFromConfig(cfg)
+	tableName := "blog"
+	_, err = svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String(tableName),
+	})
+	scanOutput, _ := svc.Scan(context.TODO(), &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+	})
+
+	var post BlogPost
+	err = attributevalue.UnmarshalMap(scanOutput.Items[0], &post)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Blog: %s, Posts: %s\n", post.Blog, post.Posts)
+  blogPosts = post.Posts
+
 	// Load environment variables from .env file
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -138,11 +174,11 @@ func writePageHandler(c *gin.Context) {
 
 func writePostHandler(c *gin.Context) {
 	// Handle the form submission for writing a new post
-	title := c.PostForm("title")
-	content := c.PostForm("content")
+	// title := c.PostForm("title")
+  // content := c.PostForm("content")
 
 	// Add the new post to the blogPosts slice
-	blogPosts = append(blogPosts, BlogPost{Title: title, Content: content})
+	// blogPosts = append(blogPosts, BlogPost{Title: title, Content: content})
 
 	// Redirect to the homepage
 	c.Redirect(http.StatusFound, "/")
