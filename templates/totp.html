@@ -12,47 +12,34 @@
     <title>{{ .title }}</title>
   </head>
   <body class="bg-zinc-900 w-5/6 mx-auto">
-    <nav class="flex p-4 justify-around">
-      <h1 class="text-3xl font-bold text-white">Blog</h1>
-      <ul class="flex gap-4 my-auto">
-        <li class="text-white"><a href="/">Home</a></li>
-        <li class="text-white"><a href="/auth/logout">Logout</a></li>
-      </ul>
-    </nav>
+    <h1 class="text-3xl font-bold underline text-white my-8">2FA</h1>
 
-    <h1 class="text-3xl font-bold underline text-white my-8">Write Post</h1>
+    {{ if .message }}
+    <p class="text-red-500">{{ .message }}</p>
+    {{ end }}
 
     <form
-      action="/write"
+      action="/auth/totp"
       method="POST"
       class="bg-zinc-800 p-6 rounded-lg shadow"
     >
       <div class="mb-4">
-        <label for="title" class="block text-gray-300">Title</label>
+        <label for="code" class="block text-gray-300">Code</label>
         <input
           type="text"
-          id="title"
-          name="title"
+          id="code"
+          name="code"
           class="w-full p-2 rounded bg-zinc-700 text-white"
           required
         />
-      </div>
-      <div class="mb-4">
-        <label for="content" class="block text-gray-300">Content</label>
-        <textarea
-          id="content"
-          name="content"
-          class="w-full p-2 rounded bg-zinc-700 text-white"
-          rows="5"
-          required
-        ></textarea>
       </div>
       <button
         type="submit"
         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
       >
-        Publish
+        Submit
       </button>
     </form>
   </body>
+  <
 </html>

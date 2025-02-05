@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/pquerna/otp/totp"
 )
 
 type BlogPost struct {
@@ -33,6 +34,7 @@ func main() {
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	adminUsername := os.Getenv("ADMIN_USERNAME")
 	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	totpSecret := os.Getenv("TOTP_SECRET")
 
 	// Create a new Gin router
 	r := gin.Default()
@@ -47,6 +49,10 @@ func main() {
 	// Define routes
 	r.GET("/", homeHandler)
 	r.GET("/login", loginPageHandler)
+	r.GET("/totp", totpPageHandler)
+	r.POST("/auth/totp", func(c *gin.Context) {
+		totpHandler(c, totpSecret)
+	})
 	r.POST("/auth/login", func(c *gin.Context) {
 		loginHandler(c, adminUsername, adminPassword)
 	})
@@ -63,7 +69,7 @@ func homeHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"title": "My Blog",
 		"posts": blogPosts,
-    "user":  sessions.Default(c).Get("loggedIn"),
+		"user":  sessions.Default(c).Get("loggedIn"),
 	})
 }
 
@@ -71,6 +77,13 @@ func loginPageHandler(c *gin.Context) {
 	// Render the login page
 	c.HTML(http.StatusOK, "login.html", gin.H{
 		"title": "Login",
+	})
+}
+
+func totpPageHandler(c *gin.Context) {
+	// Render the totp page
+	c.HTML(http.StatusOK, "totp.html", gin.H{
+		"title": "TOTP",
 	})
 }
 
@@ -82,12 +95,28 @@ func loginHandler(c *gin.Context, adminUsername, adminPassword string) {
 	if username == adminUsername && password == adminPassword {
 		session := sessions.Default(c)
 		session.Set("loggedIn", true)
-		session.Save()
-		c.Redirect(http.StatusFound, "/")
+		c.Redirect(http.StatusFound, "/totp")
 	} else {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":   "Login",
 			"message": "Invalid username or password",
+		})
+	}
+}
+
+func totpHandler(c *gin.Context, totpSecret string) {
+	// Simulate TOTP authentication
+	totpCode := c.PostForm("code")
+	valid := totp.Validate(totpCode, totpSecret)
+	if valid {
+		session := sessions.Default(c)
+		session.Set("loggedIn", true)
+		session.Save()
+		c.Redirect(http.StatusFound, "/")
+	} else {
+		c.HTML(http.StatusOK, "totp.html", gin.H{
+			"title":   "TOTP",
+			"message": "Invalid TOTP code",
 		})
 	}
 }
@@ -120,6 +149,18 @@ func writePostHandler(c *gin.Context) {
 }
 
 func authMiddleware(c *gin.Context) {
+	// Check if the user is logged in
+	session := sessions.Default(c)
+	loggedIn := session.Get("loggedIn")
+	if loggedIn == nil || !loggedIn.(bool) {
+		c.Redirect(http.StatusFound, "/login")
+		c.Abort()
+		return
+	}
+	c.Next()
+}
+
+func totpMiddleware(c *gin.Context) {
 	// Check if the user is logged in
 	session := sessions.Default(c)
 	loggedIn := session.Get("loggedIn")

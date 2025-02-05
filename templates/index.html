@@ -4,12 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.js" integrity="sha384-oeUn82QNXPuVkGCkcrInrS1twIxKhkZiFfr2TdiuObZ3n3yIeMiqcRzkIcguaof1" crossorigin="anonymous"></script>
-    <style type="text/tailwindcss">
-      @theme {
-        --color-clifford: #da373d;
-      }
-    </style>
+    <script
+      src="https://unpkg.com/htmx.org@2.0.4"
+      integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+      crossorigin="anonymous"
+    ></script>
     <title>{{ .title }}</title>
   </head>
   <body class="bg-zinc-900 w-5/6 mx-auto">
@@ -29,13 +28,13 @@
     <div class="w-2/3 space-y-8 mx-auto">
       {{ range .posts }}
       <article class="bg-zinc-800 p-6 rounded-lg shadow">
-        <h2 class="text-2xl font-bold text-clifford">{{ .Title }}</h2>
+        <h2 class="text-2xl font-bold text-white">{{ .Title }}</h2>
         <p class="text-gray-300 mt-2">{{ .Content }}</p>
         <button
           hx-get="/api/read-more/{{ .Title }}"
           hx-target="#post-{{ .Title }}"
           hx-swap="innerHTML"
-          class="mt-4 bg-clifford text-white px-4 py-2 rounded hover:bg-red-600"
+          class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
           Read More
         </button>
