@@ -6,11 +6,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -18,72 +22,156 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-type Post struct {
-	Title   string
-	Text    string
-	Tags    string
-	Created string
-	Updated string
-	Mood    string
-}
-
 type BlogPost struct {
-	Blog  string `dynamodbav:"blog"`
-	Posts []Post `dynamodbav:"posts"`
+	ID          int64    `dynamodbav:"post"`
+	DateCreated string   `dynamodbav:"date_created"`
+	DateEdited  string   `dynamodbav:"date_edited"`
+	Mood        string   `dynamodbav:"mood"`
+	Tags        []string `dynamodbav:"tags"`
+	Text        string   `dynamodbav:"text"`
+	Title       string   `dynamodbav:"title"`
 }
 
-var blogPosts []Post
+type BlogHandler struct {
+	dynamoClient *dynamodb.Client
+	posts        *[]BlogPost
+}
 
-func main() {
+func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
+	return &BlogHandler{
+		dynamoClient: client,
+		posts:        data,
+	}
+}
+
+func loadConfig() ([]BlogPost, *dynamodb.Client, error) {
+	if err := godotenv.Load(); err != nil {
+		return nil, nil, fmt.Errorf("error loading .env file: %w", err)
+	}
+
+	// Initialize AWS config
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-west-1"),
 	)
 	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
+		return nil, nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
 
-	svc := dynamodb.NewFromConfig(cfg)
-	tableName := "blog"
-	_, err = svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String(tableName),
-	})
-	scanOutput, _ := svc.Scan(context.TODO(), &dynamodb.ScanInput{
-		TableName: aws.String(tableName),
-	})
+	// Create DynamoDB client
+	client := dynamodb.NewFromConfig(cfg)
 
-	var post BlogPost
-	err = attributevalue.UnmarshalMap(scanOutput.Items[0], &post)
+	// Scan DynamoDB table
+	result, err := client.Scan(context.TODO(), &dynamodb.ScanInput{
+		TableName: aws.String("posts"),
+	})
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, fmt.Errorf("failed to scan table: %w", err)
 	}
-	fmt.Printf("Blog: %s, Posts: %s\n", post.Blog, post.Posts)
-  blogPosts = post.Posts
 
-	// Load environment variables from .env file
-	err = godotenv.Load()
+	// Process results
+	var posts []BlogPost
+	for _, item := range result.Items {
+		var post BlogPost
+		if err := attributevalue.UnmarshalMap(item, &post); err != nil {
+			return nil, nil, fmt.Errorf("failed to unmarshal item: %w", err)
+		}
+		fmt.Println(post)
+		posts = append(posts, post)
+	}
+
+	return posts, client, nil
+}
+
+func appendBlogPost(
+	ctx context.Context,
+	client *dynamodb.Client,
+	posts *[]BlogPost,
+	newPost BlogPost,
+) error {
+	// Marshal the new post into an AttributeValue map
+	itemAV, err := attributevalue.MarshalMap(newPost)
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return fmt.Errorf("failed to marshal new post: %w", err)
+	}
+
+	// Use PutItem to insert a new blog post
+	input := &dynamodb.PutItemInput{
+		TableName: aws.String("posts"),
+		Item:      itemAV,
+	}
+
+	if _, err := client.PutItem(ctx, input); err != nil {
+		return fmt.Errorf("failed to insert new post into DynamoDB: %w", err)
+	}
+	// Update the posts slice with the new post
+	*posts = append(*posts, newPost)
+
+	return nil
+}
+
+func removePostByID(id int64, posts *[]BlogPost) []BlogPost {
+	for i, post := range *posts {
+		if post.ID == id {
+			*posts = append((*posts)[:i], (*posts)[i+1:]...)
+			break
+		}
+	}
+	return *posts
+}
+
+func deleteBlogPost(
+	ctx context.Context,
+	client *dynamodb.Client,
+	posts *[]BlogPost,
+	id int64,
+) error {
+	// Delete the blog post by its numeric ID
+	input := &dynamodb.DeleteItemInput{
+		TableName: aws.String("posts"),
+		Key: map[string]types.AttributeValue{
+			"post": &types.AttributeValueMemberN{Value: strconv.FormatInt(id, 10)},
+		},
+	}
+
+	if _, err := client.DeleteItem(ctx, input); err != nil {
+		return fmt.Errorf("failed to delete post from DynamoDB: %w", err)
+	}
+	// Remove the deleted post from the posts slice
+	*posts = removePostByID(id, posts)
+
+	return nil
+}
+
+func main() {
+	// Load configuration and initialize DynamoDB
+	posts, dynamoClient, err := loadConfig()
+	if err != nil {
+		log.Fatalf("Failed to initialize: %v", err)
 	}
 
 	// Get environment variables
 	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	adminUsername := os.Getenv("ADMIN_USERNAME")
 	adminPassword := os.Getenv("ADMIN_PASSWORD")
 	totpSecret := os.Getenv("TOTP_SECRET")
 
-	// Create a new Gin router
+	// Initialize Gin router
 	r := gin.Default()
+	handler := NewBlogHandler(dynamoClient, &posts)
 
 	// Set up session middleware
-	store := cookie.NewStore([]byte(sessionSecret)) // Use SESSION_SECRET from .env
+	store := cookie.NewStore([]byte(sessionSecret))
 	r.Use(sessions.Sessions("mysession", store))
 
-	// Load HTML templates from the "templates" directory
+	// Load templates
 	r.LoadHTMLGlob("templates/*")
 
 	// Define routes
-	r.GET("/", homeHandler)
+	r.GET("/", handler.homeHandler)
 	r.GET("/login", loginPageHandler)
 	r.GET("/totp", totpPageHandler)
 	r.POST("/auth/totp", func(c *gin.Context) {
@@ -94,17 +182,21 @@ func main() {
 	})
 	r.GET("/auth/logout", logoutHandler)
 	r.GET("/write", authMiddleware, writePageHandler)
-	r.POST("/write", authMiddleware, writePostHandler)
+	r.POST("/write", authMiddleware, handler.writePostHandler)
+	r.DELETE("/posts/:id", authMiddleware, handler.deletePostHandler)
 
-	// Start the server
-	r.Run(":" + port)
+	// Start server
+	log.Printf("Server starting on port %s", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }
 
-func homeHandler(c *gin.Context) {
+func (h *BlogHandler) homeHandler(c *gin.Context) {
 	// Render the "index.html" template with blog posts
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"title": "My Blog",
-		"posts": blogPosts,
+		"posts": h.posts,
 		"user":  sessions.Default(c).Get("loggedIn"),
 	})
 }
@@ -165,6 +257,22 @@ func logoutHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/")
 }
 
+func (h *BlogHandler) deletePostHandler(c *gin.Context) {
+	id := c.Param("id")
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+	if err := deleteBlogPost(c.Request.Context(), h.dynamoClient, h.posts, idInt); err != nil {
+		c.String(http.StatusInternalServerError, "Failed to delete post: %v", err)
+		return
+	}
+
+	c.Header("HX-Redirect", "/")
+	c.Status(http.StatusSeeOther)
+}
+
 func writePageHandler(c *gin.Context) {
 	// Render the "write post" page
 	c.HTML(http.StatusOK, "write.html", gin.H{
@@ -172,31 +280,27 @@ func writePageHandler(c *gin.Context) {
 	})
 }
 
-func writePostHandler(c *gin.Context) {
-	// Handle the form submission for writing a new post
-	// title := c.PostForm("title")
-  // content := c.PostForm("content")
+func (h *BlogHandler) writePostHandler(c *gin.Context) {
+	tags := strings.Split(c.PostForm("tags"), ",")
+	newPost := BlogPost{
+		ID:          time.Now().Unix(),
+		Title:       c.PostForm("title"),
+		Text:        c.PostForm("text"),
+		Tags:        tags,
+		Mood:        c.PostForm("mood"),
+		DateCreated: time.Now().Format("Jan 2, 2006"),
+		DateEdited:  time.Now().Format("Jan 2, 2006"),
+	}
 
-	// Add the new post to the blogPosts slice
-	// blogPosts = append(blogPosts, BlogPost{Title: title, Content: content})
+	if err := appendBlogPost(c.Request.Context(), h.dynamoClient, h.posts, newPost); err != nil {
+		c.String(http.StatusInternalServerError, "Failed to save post: %v", err)
+		return
+	}
 
-	// Redirect to the homepage
 	c.Redirect(http.StatusFound, "/")
 }
 
 func authMiddleware(c *gin.Context) {
-	// Check if the user is logged in
-	session := sessions.Default(c)
-	loggedIn := session.Get("loggedIn")
-	if loggedIn == nil || !loggedIn.(bool) {
-		c.Redirect(http.StatusFound, "/login")
-		c.Abort()
-		return
-	}
-	c.Next()
-}
-
-func totpMiddleware(c *gin.Context) {
 	// Check if the user is logged in
 	session := sessions.Default(c)
 	loggedIn := session.Get("loggedIn")

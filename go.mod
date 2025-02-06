@@ -3,6 +3,7 @@ module blog/serve
 go 1.23.5
 
 require (
+	github.com/aws/aws-sdk-go v1.55.6 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.1 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.6 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.59 // indirect
@@ -33,9 +34,11 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.24.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/context v1.1.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/sessions v1.4.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
