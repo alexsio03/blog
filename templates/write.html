@@ -34,6 +34,7 @@
           id="title"
           name="title"
           class="w-full p-2 rounded bg-zinc-700 text-white"
+          value="{{ if $.post }}{{ $.post.Title }}{{ end }}"
           required
         />
       </div>
@@ -45,7 +46,7 @@
           class="w-full p-2 rounded bg-zinc-700 text-white"
           rows="5"
           required
-        ></textarea>
+        >{{ if $.post }}{{ $.post.Text }}{{ end }}</textarea>
       </div>
       <div class="mb-4">
         <label for="tags" class="block text-gray-300">Tags</label>
@@ -54,6 +55,8 @@
           id="tags"
           name="tags"
           class="w-full p-2 rounded bg-zinc-700 text-white"
+          value="{{ range $.post.Tags }}{{ . }}, {{ end }}"
+          required
         />
       </div>
       <div class="mb-4">
@@ -63,6 +66,8 @@
           id="mood"
           name="mood"
           class="w-full p-2 rounded bg-zinc-700 text-white"
+          value="{{ if $.post }}{{ $.post.Mood }}{{ end }}"
+          required
         />
       </div>
       <button
