@@ -1,0 +1,41 @@
+<div class="pt-8">
+  <h1>Latest Month</h1>
+  <hr class="dashed mb-4" />
+  <div class="flex justify-between items-center mb-4">
+    <button
+      hx-get="/calendar?month={{.PrevMonth}}&year={{.PrevYear}}"
+      hx-target="#calendar"
+      hx-swap="innerHTML"
+      class=""
+    >
+      &lt;
+    </button>
+    <h2 class="">{{.MonthName}} {{.Year}}</h2>
+    <button
+      hx-get="/calendar?month={{.NextMonth}}&year={{.NextYear}}"
+      hx-target="#calendar"
+      hx-swap="innerHTML"
+      class=""
+    >
+      &gt;
+    </button>
+  </div>
+  <div class="grid grid-cols-7 gap-1 text-center">
+    <div class="text-xs">Sun</div>
+    <div class="text-xs">Mon</div>
+    <div class="text-xs">Tue</div>
+    <div class="text-xs">Wed</div>
+    <div class="text-xs">Thu</div>
+    <div class="text-xs">Fri</div>
+    <div class="text-xs">Sat</div>
+
+    {{range .Days}}
+    <div>
+      {{if ne . 0}} {{if and (eq . $.CurrentDay) (eq $.CurrentMonth $.MonthName) (eq
+      $.CurrentYear $.Year)}}
+      <span class="text-red-500">{{.}}</span>
+      {{else}} {{.}} {{end}} {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>

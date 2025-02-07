@@ -28,6 +28,9 @@
     <div class="flex h-full bg-zinc-700 p-6 shadow space-y-8 mx-auto">
       <nav class="w-1/4 flex flex-col text-white">
         <h1>Stuff Here</h1>
+        <div id="calendar" hx-get="/calendar" hx-trigger="load" hx-swap="innerHTML">
+        <!-- Calendar will be loaded dynamically -->
+    </div>
       </nav>
       <div class="w-full flex flex-col">
         {{ range .posts }}

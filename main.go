@@ -37,6 +37,19 @@ type BlogHandler struct {
 	posts        *[]BlogPost
 }
 
+type CalendarData struct {
+	MonthName string
+	Year      int
+	PrevMonth int
+	PrevYear  int
+	NextMonth int
+	NextYear  int
+	Days      []int
+  CurrentDay int
+  CurrentMonth string
+  CurrentYear int
+}
+
 func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
 	return &BlogHandler{
 		dynamoClient: client,
@@ -184,6 +197,7 @@ func main() {
 	r.GET("/write", authMiddleware, writePageHandler)
 	r.POST("/write", authMiddleware, handler.writePostHandler)
 	r.DELETE("/posts/:id", authMiddleware, handler.deletePostHandler)
+  r.GET("/calendar", calendarHandler)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)
@@ -213,6 +227,61 @@ func totpPageHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "totp.html", gin.H{
 		"title": "TOTP",
 	})
+}
+
+func calendarHandler(c *gin.Context) {
+		// Get month and year from query params or use current date
+		month, _ := strconv.Atoi(c.DefaultQuery("month", strconv.Itoa(int(time.Now().Month()))))
+		year, _ := strconv.Atoi(c.DefaultQuery("year", strconv.Itoa(time.Now().Year())))
+
+		// Generate calendar data
+		calendarData := generateCalendarData(month, year)
+
+		// Render the calendar template
+		c.HTML(http.StatusOK, "calendar.html", calendarData)
+	}
+
+func generateCalendarData(month, year int) CalendarData {
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	_, lastDay := firstDay.Month(), daysInMonth(year, month)
+
+	// Calculate previous and next months
+	prevMonth, prevYear := month-1, year
+	nextMonth, nextYear := month+1, year
+
+	if prevMonth == 0 {
+		prevMonth, prevYear = 12, year-1
+	}
+	if nextMonth == 13 {
+		nextMonth, nextYear = 1, year+1
+	}
+
+	// Generate days with placeholders for alignment
+	days := make([]int, 0)
+	for i := 0; i < int(firstDay.Weekday()); i++ {
+		days = append(days, 0) // Empty spaces for alignment
+	}
+	for day := 1; day <= lastDay; day++ {
+		days = append(days, day)
+	}
+
+	return CalendarData{
+		MonthName: time.Month(month).String(),
+		Year:      year,
+		PrevMonth: prevMonth,
+		PrevYear:  prevYear,
+		NextMonth: nextMonth,
+		NextYear:  nextYear,
+		Days:      days,
+    CurrentDay: time.Now().Day(),
+    CurrentMonth: time.Month(time.Now().Month()).String(),
+    CurrentYear: time.Now().Year(),
+	}
+}
+
+// daysInMonth returns the number of days in a given month/year
+func daysInMonth(year, month int) int {
+	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
 func loginHandler(c *gin.Context, adminUsername, adminPassword string) {
