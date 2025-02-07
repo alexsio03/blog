@@ -28,16 +28,16 @@ type BlogHandler struct {
 }
 
 type CalendarData struct {
-	MonthName string
-	Year      int
-	PrevMonth int
-	PrevYear  int
-	NextMonth int
-	NextYear  int
-	Days      []int
-  CurrentDay int
-  CurrentMonth string
-  CurrentYear int
+	MonthName    string
+	Year         int
+	PrevMonth    int
+	PrevYear     int
+	NextMonth    int
+	NextYear     int
+	Days         []int
+	CurrentDay   int
+	CurrentMonth string
+	CurrentYear  int
 }
 
 func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
@@ -71,16 +71,16 @@ func totpPageHandler(c *gin.Context) {
 }
 
 func calendarHandler(c *gin.Context) {
-		// Get month and year from query params or use current date
-		month, _ := strconv.Atoi(c.DefaultQuery("month", strconv.Itoa(int(time.Now().Month()))))
-		year, _ := strconv.Atoi(c.DefaultQuery("year", strconv.Itoa(time.Now().Year())))
+	// Get month and year from query params or use current date
+	month, _ := strconv.Atoi(c.DefaultQuery("month", strconv.Itoa(int(time.Now().Month()))))
+	year, _ := strconv.Atoi(c.DefaultQuery("year", strconv.Itoa(time.Now().Year())))
 
-		// Generate calendar data
-		calendarData := generateCalendarData(month, year)
+	// Generate calendar data
+	calendarData := generateCalendarData(month, year)
 
-		// Render the calendar template
-		c.HTML(http.StatusOK, "calendar.html", calendarData)
-	}
+	// Render the calendar template
+	c.HTML(http.StatusOK, "calendar.html", calendarData)
+}
 
 func loginHandler(c *gin.Context, adminUsername, adminPassword string) {
 	// Simulate user authentication
@@ -148,41 +148,73 @@ func writePageHandler(c *gin.Context) {
 }
 
 func (h *BlogHandler) writePostHandler(c *gin.Context) {
-	tags := strings.Split(c.PostForm("tags"), ",")
-	newPost := BlogPost{
-		ID:          time.Now().Unix(),
+  tagsRaw := strings.Split(c.PostForm("tags"), ",")
+  var tags []string
+
+  for _, tag := range tagsRaw {
+        trimmedTag := strings.TrimSpace(tag) // Remove spaces around each tag
+        if trimmedTag != "" {               // Ignore empty tags
+            tags = append(tags, trimmedTag)
+        }
+  }
+	newPost := BlogPost{}
+	postID := time.Now().Unix()
+	DateCreated := time.Now().Format("Jan 2, 2006")
+	if c.PostForm("id") != "" {
+		id, err := strconv.ParseInt(c.PostForm("id"), 10, 64)
+		if err != nil {
+			c.String(http.StatusBadRequest, "Invalid post ID")
+			return
+		}
+		post, err := getBlogPost(h.posts, id)
+		if err != nil {
+			c.String(http.StatusBadRequest, "Invalid post ID")
+			return
+		}
+		postID = post.ID
+		DateCreated = post.DateCreated
+	}
+	newPost = BlogPost{
+		ID:          postID,
 		Title:       c.PostForm("title"),
 		Text:        c.PostForm("text"),
 		Tags:        tags,
 		Mood:        c.PostForm("mood"),
-		DateCreated: time.Now().Format("Jan 2, 2006"),
+		DateCreated: DateCreated,
 		DateEdited:  time.Now().Format("Jan 2, 2006"),
 	}
 
-	if err := appendBlogPost(c.Request.Context(), h.dynamoClient, h.posts, newPost); err != nil {
-		c.String(http.StatusInternalServerError, "Failed to save post: %v", err)
-		return
+	if c.PostForm("id") != "" {
+		if err := updatePostByID(c.Request.Context(), h.dynamoClient, h.posts, newPost.ID, newPost); err != nil {
+			c.String(http.StatusInternalServerError, "Failed to update post: %v", err)
+			return
+		}
+	} else {
+		if err := appendBlogPost(c.Request.Context(), h.dynamoClient, h.posts, newPost); err != nil {
+			c.String(http.StatusInternalServerError, "Failed to save post: %v", err)
+			return
+		}
 	}
 
 	c.Redirect(http.StatusFound, "/")
 }
 
 func (h *BlogHandler) editPostHandler(c *gin.Context) {
-  id := c.Param("id")
-  idInt, err := strconv.ParseInt(id, 10, 64)
-  if err != nil {
-    c.String(http.StatusBadRequest, "Invalid post ID")
-    return
-  }
-  post, err := getBlogPost(h.posts, idInt)
-  if err != nil {
-    c.String(http.StatusInternalServerError, "Failed to get post: %v", err)
-    return
-  }
-  c.HTML(http.StatusOK, "write.html", gin.H{
-    "title": "Edit Post",
-    "post":  post,
-  })
+	id := c.Param("id")
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+	post, err := getBlogPost(h.posts, idInt)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to get post: %v", err)
+		return
+	}
+	c.HTML(http.StatusOK, "write.html", gin.H{
+		"title": "Edit Post",
+		"post":  post,
+	})
 }
 
 func authMiddleware(c *gin.Context) {

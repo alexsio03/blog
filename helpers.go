@@ -78,6 +78,53 @@ func appendBlogPost(
 	return nil
 }
 
+func updatePostByID(ctx context.Context, client *dynamodb.Client, posts *[]BlogPost, id int64, updatedPost BlogPost) error {
+  // Use UpdateItem to update the blog post
+  tagsAttributeValues := make([]types.AttributeValue, len(updatedPost.Tags))
+  for i, tag := range updatedPost.Tags {
+        tagsAttributeValues[i] = &types.AttributeValueMemberS{Value: tag}
+  }
+
+  input := &dynamodb.UpdateItemInput{
+        TableName: aws.String("posts"),
+        Key: map[string]types.AttributeValue{
+              "post": &types.AttributeValueMemberN{Value: strconv.FormatInt(id, 10)},
+          },
+        ExpressionAttributeNames: map[string]string{
+              "#title":       "title",
+              "#text":        "text",
+              "#mood":        "mood",
+              "#date_edited": "date_edited",
+              "#date_created": "date_created",
+              "#tags":        "tags", // Added #tags to the ExpressionAttributeNames map
+          },
+        ExpressionAttributeValues: map[string]types.AttributeValue{
+              ":title":       &types.AttributeValueMemberS{Value: updatedPost.Title},
+              ":text":        &types.AttributeValueMemberS{Value: updatedPost.Text},
+              ":mood":        &types.AttributeValueMemberS{Value: updatedPost.Mood},
+              ":date_edited": &types.AttributeValueMemberS{Value: updatedPost.DateEdited},
+              ":tags":        &types.AttributeValueMemberL{Value: tagsAttributeValues}, // Use the converted list
+              ":date_created": &types.AttributeValueMemberS{Value: updatedPost.DateCreated},
+          },
+        UpdateExpression: aws.String("SET #title = :title, #text = :text, #mood = :mood, #date_edited = :date_edited, #tags = :tags, #date_created = :date_created"),
+  }
+
+  if _, err := client.UpdateItem(ctx, input); err != nil {
+    return fmt.Errorf("failed to update post in DynamoDB: %w", err)
+  }
+
+  // Update the posts slice with the updated post
+  for i, post := range *posts {
+    if post.ID == id {
+      (*posts)[i] = updatedPost
+      break
+    }
+  }
+
+  return nil
+}
+
+  
 func removePostByID(id int64, posts *[]BlogPost) []BlogPost {
 	for i, post := range *posts {
 		if post.ID == id {

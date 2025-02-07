@@ -28,6 +28,7 @@
       class="bg-zinc-800 p-6 rounded-lg shadow"
     >
       <div class="mb-4">
+        <input class="hidden" name="id" value="{{ if $.post }}{{ $.post.ID }}{{ end }}" />
         <label for="title" class="block text-gray-300">Title</label>
         <input
           type="text"
