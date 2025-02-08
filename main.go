@@ -47,7 +47,7 @@ func main() {
 	r.POST("/auth/login", func(c *gin.Context) {
 		loginHandler(c, adminUsername, adminPassword)
 	})
-	r.GET("/auth/logout", logoutHandler)
+	r.GET("/auth/logout", authMiddleware, logoutHandler)
 	r.GET("/write", authMiddleware, writePageHandler)
 	r.POST("/write", authMiddleware, handler.writePostHandler)
   r.GET("/write/:id", authMiddleware, handler.editPostHandler)
