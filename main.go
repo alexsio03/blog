@@ -45,7 +45,7 @@ func main() {
 		totpHandler(c, totpSecret)
 	})
 	r.POST("/auth/login", func(c *gin.Context) {
-		loginHandler(c, adminUsername, adminPassword)
+		loginHandler(c, dynamoClient, adminUsername, adminPassword)
 	})
 	r.GET("/auth/logout", authMiddleware, logoutHandler)
 	r.GET("/write", authMiddleware, writePageHandler)

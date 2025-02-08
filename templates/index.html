@@ -25,9 +25,12 @@
     </nav>
 
     <!-- Blog Posts Section -->
-    <div class="flex h-full bg-zinc-700 p-6 shadow space-y-8 mx-auto">
+    <div class="flex h-full bg-zinc-700 p-4 shadow space-y-8 mx-auto">
       <nav class="w-1/4 flex flex-col text-white">
-        <h1>Stuff Here</h1>
+        <div class="mt-4 bg-zinc-900 border-black border-2 drop-shadow-lg p-4 text-center">
+          <h2 class="text-xl font-bold">Alex Warda</h2>
+          <p class="mt-2 text-sm">This blog is how I keep track of what I've learned, what I'm working on, and just to vent. It is largely styled after GRRM's "Not A Blog."</p>
+        </div>
         <div id="calendar" hx-get="/calendar" hx-trigger="load" hx-swap="innerHTML">
         <!-- Calendar will be loaded dynamically -->
     </div>

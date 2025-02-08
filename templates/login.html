@@ -23,7 +23,11 @@
     <h1 class="text-3xl font-bold underline text-white my-8">Login</h1>
 
     {{ if .message }}
-    <p class="text-red-500">{{ .message }}</p>
+    <p class="text-red-500">
+      {{ .message }} 
+      {{ if .logins }} You have {{ .logins }} attempts left.{{ end }}
+      {{ if .timeout }} You have {{ .timeout }} minutes left.{{ end }}
+    </p>
     {{ end }}
 
     <form

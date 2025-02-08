@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,6 +40,13 @@ type CalendarData struct {
 	CurrentDay   int
 	CurrentMonth string
 	CurrentYear  int
+}
+
+type User struct {
+	Username         string  `dynamodbav:"username"`
+	LoginAttempts    int     `dynamodbav:"login_attempts"`
+	LastLoginAttempt string  `dynamodbav:"last_login_attempt"`
+	Timeout          float64 `dynamodbav:"timeout"`
 }
 
 func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
@@ -82,20 +91,84 @@ func calendarHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "calendar.html", calendarData)
 }
 
-func loginHandler(c *gin.Context, adminUsername, adminPassword string) {
+func loginHandler(c *gin.Context, client *dynamodb.Client, adminUsername, adminPassword string) {
 	// Simulate user authentication
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
-	if username == adminUsername && password == adminPassword {
+	// Get the user item from the user table
+	user, err := getUser(c, client, username)
+	fmt.Println(user)
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"title":   "Login",
+			"message": "Failed to retrieve user",
+		})
+		return
+	}
+
+	if username == adminUsername && user.LoginAttempts < 3 && user.Username == adminUsername &&
+		password == adminPassword {
 		session := sessions.Default(c)
 		session.Set("loggedIn", true)
 		c.Redirect(http.StatusFound, "/totp")
 	} else {
-		c.HTML(http.StatusOK, "login.html", gin.H{
-			"title":   "Login",
-			"message": "Invalid username or password",
-		})
+		const (
+        maxAttempts = 3
+        timeoutMinutes = 30
+    )
+
+    // Handle new login attempt
+    if user.LoginAttempts < maxAttempts {
+        user.LastLoginAttempt = time.Now().Format(time.RFC3339)
+        user.LoginAttempts++
+    }
+
+    // Check if we need to start or continue timeout
+    if user.LoginAttempts >= maxAttempts {
+        lastAttempt, err := time.Parse(time.RFC3339, user.LastLoginAttempt)
+        if err != nil {
+            c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+                "title":   "Login",
+                "message": "Failed to parse last login attempt",
+            })
+            return
+        }
+
+        // Calculate remaining timeout
+        elapsedMinutes := time.Since(lastAttempt).Minutes()
+        if elapsedMinutes < timeoutMinutes {
+            user.Timeout = timeoutMinutes - elapsedMinutes
+        } else {
+            // Reset after timeout period
+            user.LoginAttempts = 0
+            user.Timeout = 0
+        }
+    }
+		_, err := putUser(c, client, user)
+		if err != nil {
+			c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+				"title":   "Login",
+				"message": "Failed to update user",
+			})
+			return
+		}
+		attemptsLeft := 3 - user.LoginAttempts
+		if attemptsLeft <= 0 {
+			c.HTML(http.StatusOK, "login.html", gin.H{
+				"title":   "Login",
+				"message": "You have exceeded the maximum number of login attempts.",
+				"timeout": math.Round(user.Timeout),
+			})
+			return
+		} else {
+			c.HTML(http.StatusOK, "login.html", gin.H{
+				"title":   "Login",
+				"message": "Invalid username or password",
+				"logins":  attemptsLeft,
+			})
+			return
+		}
 	}
 }
 
@@ -148,15 +221,15 @@ func writePageHandler(c *gin.Context) {
 }
 
 func (h *BlogHandler) writePostHandler(c *gin.Context) {
-  tagsRaw := strings.Split(c.PostForm("tags"), ",")
-  var tags []string
+	tagsRaw := strings.Split(c.PostForm("tags"), ",")
+	var tags []string
 
-  for _, tag := range tagsRaw {
-        trimmedTag := strings.TrimSpace(tag) // Remove spaces around each tag
-        if trimmedTag != "" {               // Ignore empty tags
-            tags = append(tags, trimmedTag)
-        }
-  }
+	for _, tag := range tagsRaw {
+		trimmedTag := strings.TrimSpace(tag) // Remove spaces around each tag
+		if trimmedTag != "" {                // Ignore empty tags
+			tags = append(tags, trimmedTag)
+		}
+	}
 	newPost := BlogPost{}
 	postID := time.Now().Unix()
 	DateCreated := time.Now().Format("Jan 2, 2006")

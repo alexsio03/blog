@@ -51,6 +51,53 @@ func loadConfig() ([]BlogPost, *dynamodb.Client, error) {
 	return posts, client, nil
 }
 
+
+func getUser(
+  ctx context.Context,
+  client *dynamodb.Client,
+  username string,
+) (*User, error) {
+  // Get the user item from the user table
+  input := &dynamodb.GetItemInput{
+    TableName: aws.String("user"),
+    Key: map[string]types.AttributeValue{
+      "username": &types.AttributeValueMemberS{Value: username},
+    },
+  }
+
+  result, err := client.GetItem(ctx, input)
+  if err != nil {
+    return nil, fmt.Errorf("failed to get user: %w", err)
+  }
+
+  var user User
+  if err := attributevalue.UnmarshalMap(result.Item, &user); err != nil {
+    return nil, fmt.Errorf("failed to unmarshal user: %w", err)
+  }
+
+  return &user, nil
+}
+
+func putUser(
+  ctx context.Context,
+  client *dynamodb.Client,
+  user *User,
+) (*dynamodb.PutItemOutput, error) {
+  // Marshal the user into an AttributeValue map
+  itemAV, err := attributevalue.MarshalMap(user)
+  if err != nil {
+    return nil, fmt.Errorf("failed to marshal user: %w", err)
+  }
+
+  // Use PutItem to insert the user
+  input := &dynamodb.PutItemInput{
+    TableName: aws.String("user"),
+    Item:      itemAV,
+  }
+
+  return client.PutItem(ctx, input)
+}
+
 func appendBlogPost(
 	ctx context.Context,
 	client *dynamodb.Client,
