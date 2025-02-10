@@ -261,3 +261,30 @@ func generateCalendarData(month, year int) CalendarData {
 func daysInMonth(year, month int) int {
 	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
 }
+
+func aggregateTags(posts *[]BlogPost) []string {
+  tags := make(map[string]struct{})
+  for _, post := range *posts {
+    for _, tag := range post.Tags {
+      tags[tag] = struct{}{}
+    }
+  }
+  tagList := make([]string, 0, len(tags))
+  for tag := range tags {
+    tagList = append(tagList, tag)
+  }
+  return tagList
+}
+
+func filterPostsByTag(posts *[]BlogPost, tag string) []BlogPost {
+  filteredPosts := make([]BlogPost, 0)
+  for _, post := range *posts {
+    for _, postTag := range post.Tags {
+      if postTag == tag {
+        filteredPosts = append(filteredPosts, post)
+        break
+      }
+    }
+  }
+  return filteredPosts
+}

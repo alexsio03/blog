@@ -53,6 +53,7 @@ func main() {
   r.GET("/write/:id", authMiddleware, handler.editPostHandler)
 	r.DELETE("/posts/:id", authMiddleware, handler.deletePostHandler)
   r.GET("/calendar", calendarHandler)
+  r.GET("/tags/:tag", handler.tagHandler)
 
 	// Start server
 	log.Printf("Server starting on port %s", port)

@@ -15,7 +15,9 @@
     <nav class="bg-sky-400/70 flex flex-col p-4 mx-auto">
       <ul class="flex text-white gap-4 my-auto">
         <li><a href="/">Home</a></li>
-        <li><a target="_blank" href="https://alexwarda.com">Alex's Website</a></li>
+        <li>
+          <a target="_blank" href="https://alexwarda.com">Alex's Website</a>
+        </li>
         {{ if .user }}
         <li><a href="/write">Write</a></li>
         <li><a href="/auth/logout">Logout</a></li>
@@ -27,13 +29,34 @@
     <!-- Blog Posts Section -->
     <div class="flex h-full bg-zinc-700 p-4 shadow space-y-8 mx-auto">
       <nav class="w-1/4 flex flex-col text-white">
-        <div class="mt-4 bg-zinc-900 border-black border-2 drop-shadow-lg p-4 text-center">
+        <div
+          class="mt-4 bg-zinc-900 border-black border-2 drop-shadow-lg p-4 text-center"
+        >
           <h2 class="text-xl font-bold">Alex Warda</h2>
-          <p class="mt-2 text-sm">This blog is how I keep track of what I've learned, what I'm working on, and just to vent. It is largely styled after GRRM's "Not A Blog."</p>
+          <p class="mt-2 text-sm">
+            This blog is how I keep track of what I've learned, what I'm working
+            on, and just to vent. It is largely styled after GRRM's "Not A
+            Blog."
+          </p>
         </div>
-        <div id="calendar" hx-get="/calendar" hx-trigger="load" hx-swap="innerHTML">
-        <!-- Calendar will be loaded dynamically -->
-    </div>
+        <div
+          id="calendar"
+          hx-get="/calendar"
+          hx-trigger="load"
+          hx-swap="innerHTML"
+        ></div>
+        <div class="mt-4 bg-amber-950/60 border-black border-2 drop-shadow-lg p-4">
+          <h2 class="text-xl font-bold">Tags</h2>
+          <div>
+            {{ range .tags }}
+            <a
+              href="/tags/{{ . }}"
+              class="text-sky-400 hover:underline hover:cursor-pointer"
+              >{{ . }}</a
+            >
+            {{ end }}
+          </div>
+        </div>
       </nav>
       <div class="w-full flex flex-col">
         {{ range .posts }}
@@ -53,8 +76,12 @@
             >Edit</a
           >
           {{ end }}
-          <p class="text-gray-300 mt-2">Tags: {{ range .Tags }} {{ . }}, {{ end }}</p>
-          <p class="text-gray-300 mt-2">Mood: <span class="font-bold uppercase italic">{{ .Mood }}</span></p>
+          <p class="text-gray-300 mt-2">
+            Tags: {{ range .Tags }} {{ . }}, {{ end }}
+          </p>
+          <p class="text-gray-300 mt-2">
+            Mood: <span class="font-bold uppercase italic">{{ .Mood }}</span>
+          </p>
         </article>
         {{ end }}
       </div>

@@ -58,10 +58,12 @@ func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
 
 func (h *BlogHandler) homeHandler(c *gin.Context) {
 	// Render the "index.html" template with blog posts
+  tags := aggregateTags(h.posts)
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"title": "My Blog",
 		"posts": h.posts,
 		"user":  sessions.Default(c).Get("loggedIn"),
+    "tags":  tags,
 	})
 }
 
@@ -287,6 +289,18 @@ func (h *BlogHandler) editPostHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "write.html", gin.H{
 		"title": "Edit Post",
 		"post":  post,
+	})
+}
+
+func (h *BlogHandler) tagHandler(c *gin.Context) {
+	// Render the "index.html" template with blog posts
+  tags := aggregateTags(h.posts)
+  posts := filterPostsByTag(h.posts, c.Param("tag"))
+	c.HTML(http.StatusOK, "index.html", gin.H{
+		"title": "My Blog",
+		"posts": posts,
+		"user":  sessions.Default(c).Get("loggedIn"),
+    "tags":  tags,
 	})
 }
 
