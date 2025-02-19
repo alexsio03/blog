@@ -33,9 +33,6 @@ COPY --from=builder /app/main .
 # Copy static files (assuming they're in a static directory)
 COPY templates/ templates/
 
-# Copy .env file
-COPY .env .
-
 # Expose the port your application runs on
 EXPOSE 8080
 
