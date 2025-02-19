@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+  "sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -287,4 +288,34 @@ func filterPostsByTag(posts *[]BlogPost, tag string) []BlogPost {
     }
   }
   return filteredPosts
+}
+
+func sortPostsByDate(posts []BlogPost) []BlogPost {
+	// Create a copy of the posts slice to avoid modifying the original
+	sortedPosts := make([]BlogPost, len(posts))
+	copy(sortedPosts, posts)
+
+	// Define the date format used in your posts
+	dateFormat := "Jan 2, 2006"
+
+	// Sort the posts by DateCreated in descending order (newest first)
+	sort.Slice(sortedPosts, func(i, j int) bool {
+		// Parse the DateCreated strings into time.Time objects
+		dateI, err := time.Parse(dateFormat, sortedPosts[i].DateCreated)
+		if err != nil {
+			// Handle the error (e.g., log it or panic)
+			return false
+		}
+
+		dateJ, err := time.Parse(dateFormat, sortedPosts[j].DateCreated)
+		if err != nil {
+			// Handle the error (e.g., log it or panic)
+			return false
+		}
+
+		// Compare the dates in descending order
+		return dateI.After(dateJ)
+	})
+
+	return sortedPosts
 }
