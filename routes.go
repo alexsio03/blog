@@ -57,15 +57,21 @@ func NewBlogHandler(client *dynamodb.Client, data *[]BlogPost) *BlogHandler {
 }
 
 func (h *BlogHandler) homeHandler(c *gin.Context) {
-    tags := aggregateTags(h.posts)
-    sortedPosts := sortPostsByDate(*h.posts)
-    
-    c.HTML(http.StatusOK, "index.html", gin.H{
-        "title": "My Blog",
-        "posts": sortedPosts,
-        "user":  sessions.Default(c).Get("loggedIn"),
-        "tags":  tags,
-    })
+  freshPosts, err := getFreshPosts(h.dynamoClient)
+  if err != nil {
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
+  h.posts = &freshPosts
+	tags := aggregateTags(h.posts)
+	sortedPosts := sortPostsByDate(*h.posts)
+
+	c.HTML(http.StatusOK, "index.html", gin.H{
+		"title": "My Blog",
+		"posts": sortedPosts,
+		"user":  sessions.Default(c).Get("loggedIn"),
+		"tags":  tags,
+	})
 }
 
 func loginPageHandler(c *gin.Context) {
@@ -117,37 +123,37 @@ func loginHandler(c *gin.Context, client *dynamodb.Client, adminUsername, adminP
 		c.Redirect(http.StatusFound, "/totp")
 	} else {
 		const (
-        maxAttempts = 3
-        timeoutMinutes = 30
-    )
+			maxAttempts    = 3
+			timeoutMinutes = 30
+		)
 
-    // Handle new login attempt
-    if user.LoginAttempts < maxAttempts {
-        user.LastLoginAttempt = time.Now().Format(time.RFC3339)
-        user.LoginAttempts++
-    }
+		// Handle new login attempt
+		if user.LoginAttempts < maxAttempts {
+			user.LastLoginAttempt = time.Now().Format(time.RFC3339)
+			user.LoginAttempts++
+		}
 
-    // Check if we need to start or continue timeout
-    if user.LoginAttempts >= maxAttempts {
-        lastAttempt, err := time.Parse(time.RFC3339, user.LastLoginAttempt)
-        if err != nil {
-            c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-                "title":   "Login",
-                "message": "Failed to parse last login attempt",
-            })
-            return
-        }
+		// Check if we need to start or continue timeout
+		if user.LoginAttempts >= maxAttempts {
+			lastAttempt, err := time.Parse(time.RFC3339, user.LastLoginAttempt)
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+					"title":   "Login",
+					"message": "Failed to parse last login attempt",
+				})
+				return
+			}
 
-        // Calculate remaining timeout
-        elapsedMinutes := time.Since(lastAttempt).Minutes()
-        if elapsedMinutes < timeoutMinutes {
-            user.Timeout = timeoutMinutes - elapsedMinutes
-        } else {
-            // Reset after timeout period
-            user.LoginAttempts = 0
-            user.Timeout = 0
-        }
-    }
+			// Calculate remaining timeout
+			elapsedMinutes := time.Since(lastAttempt).Minutes()
+			if elapsedMinutes < timeoutMinutes {
+				user.Timeout = timeoutMinutes - elapsedMinutes
+			} else {
+				// Reset after timeout period
+				user.LoginAttempts = 0
+				user.Timeout = 0
+			}
+		}
 		_, err := putUser(c, client, user)
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "login.html", gin.H{
@@ -295,13 +301,13 @@ func (h *BlogHandler) editPostHandler(c *gin.Context) {
 
 func (h *BlogHandler) tagHandler(c *gin.Context) {
 	// Render the "index.html" template with blog posts
-  tags := aggregateTags(h.posts)
-  posts := filterPostsByTag(h.posts, c.Param("tag"))
+	tags := aggregateTags(h.posts)
+	posts := filterPostsByTag(h.posts, c.Param("tag"))
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"title": "My Blog",
 		"posts": posts,
 		"user":  sessions.Default(c).Get("loggedIn"),
-    "tags":  tags,
+		"tags":  tags,
 	})
 }
 

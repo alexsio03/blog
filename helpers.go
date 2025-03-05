@@ -12,14 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/joho/godotenv"
 )
 
 func loadConfig() ([]BlogPost, *dynamodb.Client, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, nil, fmt.Errorf("error loading .env file: %w", err)
-	}
-
 	// Initialize AWS config
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-west-1"),
@@ -52,6 +47,28 @@ func loadConfig() ([]BlogPost, *dynamodb.Client, error) {
 	return posts, client, nil
 }
 
+func getFreshPosts(
+  client *dynamodb.Client,
+) ([]BlogPost, error) {
+  result, err := client.Scan(context.TODO(), &dynamodb.ScanInput{
+		TableName: aws.String("posts"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan table: %w", err)
+	}
+
+	// Process results
+	var posts []BlogPost
+	for _, item := range result.Items {
+		var post BlogPost
+		if err := attributevalue.UnmarshalMap(item, &post); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal item: %w", err)
+		}
+		posts = append(posts, post)
+	}
+
+  return posts, nil
+}
 
 func getUser(
   ctx context.Context,
@@ -205,6 +222,8 @@ func deleteBlogPost(
 
 	return nil
 }
+
+
 
 func getBlogPost(
   posts *[]BlogPost,
